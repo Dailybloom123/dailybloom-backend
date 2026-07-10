@@ -9,6 +9,7 @@ const vendorRoutes = require('./routes/vendorRoutes');
 const orderRoutes = require('./routes/orderRoutes');
 const subscriptionRoutes = require('./routes/subscriptionRoutes');
 const addressRoutes = require('./routes/addressRoutes');
+const adminRoutes = require('./routes/adminRoutes');
 
 const app = express();
 
@@ -24,6 +25,7 @@ app.use('/api/vendors', vendorRoutes);
 app.use('/api/orders', orderRoutes);
 app.use('/api/subscriptions', subscriptionRoutes);
 app.use('/api/addresses', addressRoutes);
+app.use('/api/admin', adminRoutes);
 
 // Catch-all error handler — turns any thrown/rejected error into a clean JSON response
 // instead of leaking a stack trace to the client.
