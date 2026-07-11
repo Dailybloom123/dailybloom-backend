@@ -10,12 +10,20 @@ const orderRoutes = require('./routes/orderRoutes');
 const subscriptionRoutes = require('./routes/subscriptionRoutes');
 const addressRoutes = require('./routes/addressRoutes');
 const adminRoutes = require('./routes/adminRoutes');
+const paymentRoutes = require('./routes/paymentRoutes');
+const webhookRoutes = require('./routes/webhookRoutes');
 
 const app = express();
 
 app.use(cors());
-app.use(express.json());
 app.use(morgan('dev'));
+
+// IMPORTANT: the Razorpay webhook needs the raw, untouched request body to verify
+// its signature — so this route gets a raw parser BEFORE the general express.json()
+// below. Every other route continues to get normal parsed JSON as usual.
+app.use('/api/webhooks', express.raw({ type: 'application/json' }), webhookRoutes);
+
+app.use(express.json());
 
 app.get('/health', (req, res) => res.json({ status: 'ok' }));
 
@@ -26,6 +34,7 @@ app.use('/api/orders', orderRoutes);
 app.use('/api/subscriptions', subscriptionRoutes);
 app.use('/api/addresses', addressRoutes);
 app.use('/api/admin', adminRoutes);
+app.use('/api/payments', paymentRoutes);
 
 // Catch-all error handler — turns any thrown/rejected error into a clean JSON response
 // instead of leaking a stack trace to the client.
