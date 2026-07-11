@@ -6,7 +6,7 @@ const db = require('../config/db');
 async function listAllOrders(req, res) {
   const ordersResult = await db.query(
     `SELECT o.*, u.name AS customer_name, u.phone AS customer_phone, u.email AS customer_email,
-            a.line1, a.city, a.pincode
+            a.line1, a.city, a.pincode, a.recipient_name, a.delivery_instructions
      FROM orders o
      JOIN users u ON u.id = o.user_id
      JOIN addresses a ON a.id = o.address_id
