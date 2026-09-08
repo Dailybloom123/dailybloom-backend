@@ -258,19 +258,146 @@ const verifyOtp = async (req, res) => {
 
 const googleAuth = async (req, res) => {
   try {
-    const { token } = req.body;
-    res.json({ success: true, message: 'Google auth URL generated' });
+    const { code } = req.body;
+    
+    if (!code) {
+      return sendErrorResponse(res, 400, 'Google authorization code is required');
+    }
+
+    // Exchange the authorization code for tokens
+    const tokenResponse = await fetch('https://oauth2.googleapis.com/token', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        code,
+        client_id: process.env.GOOGLE_CLIENT_ID,
+        client_secret: process.env.GOOGLE_CLIENT_SECRET,
+        redirect_uri: process.env.GOOGLE_REDIRECT_URI,
+        grant_type: 'authorization_code'
+      })
+    });
+
+    const tokenData = await tokenResponse.json();
+
+    if (tokenData.error) {
+      console.error('Google token exchange error:', tokenData.error);
+      return sendErrorResponse(res, 400, 'Failed to exchange Google authorization code', tokenData.error);
+    }
+
+    // Get user info from Google
+    const userResponse = await fetch('https://www.googleapis.com/oauth2/v2/userinfo', {
+      headers: { Authorization: `Bearer ${tokenData.access_token}` }
+    });
+
+    const userData = await userResponse.json();
+
+    if (userData.error) {
+      console.error('Google user info error:', userData.error);
+      return sendErrorResponse(res, 400, 'Failed to get Google user information', userData.error);
+    }
+
+    // Check if user exists by email
+    const userResult = await db.query(
+      'SELECT * FROM users WHERE email = $1',
+      [userData.email]
+    );
+
+    let user;
+    if (userResult.rows.length === 0) {
+      // Create new user from Google data
+      const newUserResult = await db.query(
+        `INSERT INTO users (email, name, role, created_at, updated_at)
+         VALUES ($1, $2, 'customer', now(), now())
+         RETURNING id, email, name, role`,
+        [userData.email, userData.name || 'Google User']
+      );
+      user = newUserResult.rows[0];
+    } else {
+      user = userResult.rows[0];
+    }
+
+    // Generate JWT token
+    const token = generateToken(user.id, user.role);
+
+    res.json({ 
+      success: true, 
+      token, 
+      user: { id: user.id, email: user.email, name: user.name, role: user.role } 
+    });
   } catch (error) {
-    res.status(500).json({ error: 'Google auth failed' });
+    console.error('Google auth error:', error);
+    sendErrorResponse(res, 500, 'Google authentication failed', error.message);
   }
 };
 
 const googleCallback = async (req, res) => {
   try {
-    const { token } = req.query;
-    res.json({ success: true, token, user: { id: 'google_user', role: 'customer' } });
+    const { code } = req.query;
+    
+    if (!code) {
+      return sendErrorResponse(res, 400, 'Google authorization code is required');
+    }
+
+    // Exchange the authorization code for tokens
+    const tokenResponse = await fetch('https://oauth2.googleapis.com/token', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        code,
+        client_id: process.env.GOOGLE_CLIENT_ID,
+        client_secret: process.env.GOOGLE_CLIENT_SECRET,
+        redirect_uri: process.env.GOOGLE_CALLBACK_URL,
+        grant_type: 'authorization_code'
+      })
+    });
+
+    const tokenData = await tokenResponse.json();
+
+    if (tokenData.error) {
+      console.error('Google token exchange error:', tokenData.error);
+      return res.redirect(`${process.env.FRONTEND_URL}?error=${encodeURIComponent('Failed to exchange Google authorization code')}`);
+    }
+
+    // Get user info from Google
+    const userResponse = await fetch('https://www.googleapis.com/oauth2/v2/userinfo', {
+      headers: { Authorization: `Bearer ${tokenData.access_token}` }
+    });
+
+    const userData = await userResponse.json();
+
+    if (userData.error) {
+      console.error('Google user info error:', userData.error);
+      return res.redirect(`${process.env.FRONTEND_URL}?error=${encodeURIComponent('Failed to get Google user information')}`);
+    }
+
+    // Check if user exists by email
+    const userResult = await db.query(
+      'SELECT * FROM users WHERE email = $1',
+      [userData.email]
+    );
+
+    let user;
+    if (userResult.rows.length === 0) {
+      // Create new user from Google data
+      const newUserResult = await db.query(
+        `INSERT INTO users (email, name, role, created_at, updated_at)
+         VALUES ($1, $2, 'customer', now(), now())
+         RETURNING id, email, name, role`,
+        [userData.email, userData.name || 'Google User']
+      );
+      user = newUserResult.rows[0];
+    } else {
+      user = userResult.rows[0];
+    }
+
+    // Generate JWT token
+    const token = generateToken(user.id, user.role);
+
+    // Redirect to frontend with token
+    res.redirect(`${process.env.FRONTEND_URL}?token=${token}&user=${encodeURIComponent(JSON.stringify({ id: user.id, email: user.email, name: user.name, role: user.role }))}`);
   } catch (error) {
-    res.status(500).json({ error: 'Google callback failed' });
+    console.error('Google callback error:', error);
+    res.redirect(`${process.env.FRONTEND_URL}?error=${encodeURIComponent('Google authentication failed')}`);
   }
 };
 
