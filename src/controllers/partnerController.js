@@ -236,6 +236,88 @@ async function acceptOrder(req, res) {
   }
 }
 
+// POST /api/partner/reject-order/:id
+// Partner rejects an available order (reason: stock unavailability, etc.)
+async function rejectOrder(req, res) {
+  const { id } = req.params;
+  const { reason } = req.body;
+  const partnerId = req.user?.id;
+
+  try {
+    if (!partnerId) {
+      return sendErrorResponse(res, 401, 'Unauthorized: Invalid partner ID');
+    }
+
+    const client = await db.pool.connect();
+    try {
+      await client.query('BEGIN');
+
+      // Check if order is still available
+      const orderResult = await client.query(
+        `SELECT * FROM orders WHERE id = $1 FOR UPDATE`,
+        [id]
+      );
+
+      if (orderResult.rows.length === 0) {
+        throw { status: 404, message: 'Order not found' };
+      }
+
+      const order = orderResult.rows[0];
+
+      // Check if order is still available
+      if (order.status !== 'pending' || order.partner_id !== null) {
+        throw {
+          status: 409,
+          message: 'Order is no longer available',
+          details: { status: order.status, assigned_to: order.partner_id }
+        };
+      }
+
+      // Update order status to rejected
+      const updateResult = await client.query(
+        `UPDATE orders
+         SET status = 'rejected', partner_id = $1, updated_at = now()
+         WHERE id = $2
+         RETURNING *`,
+        [partnerId, id]
+      );
+
+      await client.query('COMMIT');
+
+      // Send notification to customer
+      try {
+        const { createNotification } = require('./notificationController');
+        await createNotification(
+          order.user_id,
+          'order_rejected',
+          'Order Rejected',
+          `Your order #${id} could not be fulfilled by the partner. Reason: ${reason || 'Not specified'}. Please try again later.`,
+          id
+        );
+      } catch (notifError) {
+        console.error('Failed to create rejection notification:', notifError);
+      }
+
+      res.json({
+        success: true,
+        order: updateResult.rows[0],
+        message: 'Order rejected successfully'
+      });
+    } catch (err) {
+      await client.query('ROLLBACK');
+      throw err;
+    } finally {
+      client.release();
+    }
+  } catch (err) {
+    if (err.status) {
+      return sendErrorResponse(res, err.status, err.message, err.details);
+    }
+    console.error('Error rejecting order:', err);
+    sendErrorResponse(res, 500, 'Failed to reject order', err.message);
+  }
+}
+
 // GET /api/partner/orders
 // Returns orders assigned to partner/vendor with items & Google Maps routing URL
 async function getPartnerOrders(req, res) {
@@ -421,6 +503,7 @@ async function updateProductStock(req, res) {
 module.exports = {
   getAvailableOrders,
   acceptOrder,
+  rejectOrder,
   getPartnerOrders,
   updateOrderStatus,
   updateProductStock,

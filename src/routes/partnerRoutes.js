@@ -6,6 +6,7 @@ const { authenticate } = require('../middleware/auth');
 // Available orders for first-come-first-serve acceptance
 router.get('/available-orders', authenticate, partnerController.getAvailableOrders);
 router.post('/accept-order/:id', authenticate, partnerController.acceptOrder);
+router.post('/reject-order/:id', authenticate, partnerController.rejectOrder);
 
 // Partner's assigned orders
 router.get('/orders', authenticate, partnerController.getPartnerOrders);
