@@ -85,7 +85,7 @@ const filterOrderForRole = (order, user) => {
  */
 const customerFilter = (req, res, next) => {
   if (req.user.role === 'customer') {
-    req.customerFilter = { user_id: req.user.id };
+    req.customerFilter = { user_id: req.user.userId };
   }
   next();
 };
@@ -106,7 +106,7 @@ const milkVanFilter = (req, res, next) => {
 const floristFilter = (req, res, next) => {
   if (req.user.role === 'vendor' && req.user.partner_type === 'florist') {
     req.floristFilter = {
-      claimed_by_vendor_id: req.user.id,
+      claimed_by_vendor_id: req.user.userId,
       coverage_radius: req.user.coverage_radius || 5 // Default 5km
     };
   }
@@ -119,7 +119,7 @@ const floristFilter = (req, res, next) => {
 const bakeryFilter = (req, res, next) => {
   if (req.user.role === 'vendor' && req.user.partner_type === 'bakery') {
     req.bakeryFilter = {
-      assigned_partner_id: req.user.id,
+      assigned_partner_id: req.user.userId,
       delivery_slot: '10:00-13:00'
     };
   }
