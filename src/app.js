@@ -16,15 +16,17 @@ const { metrics } = require('./utils/metrics');
 const monitoring = require('./utils/monitoring');
 const { initSentry, captureError, setUser, clearUser } = require('./config/sentry');
 
-// CORS FIX: Allow all origins temporarily
-const corsOptions = {
-  origin: '*', // Allow all origins
+const app = express();
+
+// CORS MUST be first - before any other middleware
+app.use(cors({
+  origin: '*',
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization', 'x-admin-key', 'x-csrf-token']
-};
+}));
 
-console.log('CORS configured with wildcard origin');
+console.log('✅ CORS configured with wildcard origin');
 
 const authRoutes = require('./routes/authRoutes');
 const productRoutes = require('./routes/productRoutes');
@@ -58,8 +60,6 @@ const { csrfProtection, csrfTokenMiddleware } = require('./middleware/csrf');
 
 // Initialize Sentry for error tracking
 initSentry();
-
-const app = express();
 
 // Use custom logging middleware
 app.use(logApiRequest);
@@ -119,8 +119,6 @@ const allowedOrigins = [
   'http://127.0.0.1:5180',
   'http://127.0.0.1:3000'
 ];
-
-app.use(cors(corsOptions));
 
 app.use(morgan('combined', { stream: { write: message => logger.info(message.trim()) } }));
 
