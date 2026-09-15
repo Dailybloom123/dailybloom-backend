@@ -8,7 +8,7 @@ const { asyncHandler, ValidationError, AuthenticationError } = require('../middl
 // Create a pause period for a subscription
 const createPause = asyncHandler(async (req, res) => {
   const { subscriptionId, startDate, endDate } = req.body;
-  const userId = req.user.id;
+  const userId = req.user.userId;
 
   if (!subscriptionId || !startDate || !endDate) {
     throw new ValidationError('Subscription ID, start date, and end date are required');
@@ -50,7 +50,7 @@ const createPause = asyncHandler(async (req, res) => {
 // Get all pause periods for a subscription
 const getSubscriptionPauses = asyncHandler(async (req, res) => {
   const { subscriptionId } = req.params;
-  const userId = req.user.id;
+  const userId = req.user.userId;
 
   // Verify user owns the subscription
   const subscription = await db.query(
@@ -76,7 +76,7 @@ const getSubscriptionPauses = asyncHandler(async (req, res) => {
 // Delete a pause period
 const deletePause = asyncHandler(async (req, res) => {
   const { pauseId } = req.params;
-  const userId = req.user.id;
+  const userId = req.user.userId;
 
   // Verify pause belongs to user's subscription
   const pause = await db.query(
@@ -104,7 +104,7 @@ const deletePause = asyncHandler(async (req, res) => {
 // Check if subscription is currently paused
 const isSubscriptionPaused = asyncHandler(async (req, res) => {
   const { subscriptionId } = req.params;
-  const userId = req.user.id;
+  const userId = req.user.userId;
 
   // Verify user owns the subscription
   const subscription = await db.query(

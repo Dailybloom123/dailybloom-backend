@@ -8,7 +8,7 @@ const { asyncHandler, ValidationError, AuthenticationError } = require('../middl
 
 // Create withdrawal request
 const createWithdrawalRequest = asyncHandler(async (req, res) => {
-  const userId = req.user.id;
+  const userId = req.user.userId;
   const { amount, bank_account_name, bank_account_number, bank_ifsc_code, bank_name } = req.body;
 
   if (!amount || !bank_account_name || !bank_account_number || !bank_ifsc_code) {
@@ -79,7 +79,7 @@ const createWithdrawalRequest = asyncHandler(async (req, res) => {
 
 // Get user's withdrawal requests
 const getUserWithdrawals = asyncHandler(async (req, res) => {
-  const userId = req.user.id;
+  const userId = req.user.userId;
 
   const result = await db.query(
     `SELECT * FROM withdrawal_requests

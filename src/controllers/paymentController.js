@@ -1,5 +1,4 @@
 const crypto = require('crypto');
-const { v4: uuidv4 } = require('uuid');
 const db = require('../config/db');
 const razorpay = require('../utils/razorpay');
 const { notifyAdminWhatsApp } = require('../utils/whatsapp');
@@ -12,13 +11,11 @@ const { createNotification } = require('./notificationController');
 // with payment_status = 'pending' — the order exists, but isn't confirmed
 // until the customer actually pays and we verify it below.
 async function createPaymentOrder(req, res) {
-  // Get userId from auth - allow fallback for testing
-  let userId = req.user?.userId || req.userId || (req.user && req.user.id);
+  // Get userId from auth
+  const userId = req.user?.userId;
   
-  // For testing: Generate fallback userId if needed
-  if (!userId || typeof userId !== 'string' || !userId.match(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i)) {
-    userId = uuidv4();
-    console.log('Generated fallback userId for testing:', userId);
+  if (!userId) {
+    return res.status(401).json({ error: 'Authentication required' });
   }
   
   const { address_id, delivery_date, delivery_slot, items } = req.body;
