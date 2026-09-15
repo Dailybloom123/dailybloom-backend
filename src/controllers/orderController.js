@@ -11,7 +11,10 @@ async function createOrder(req, res) {
   const userId = req.user.userId;
   const { address_id, delivery_date, delivery_slot, items } = req.body;
 
+  console.log('Order creation request:', { userId, address_id, delivery_date, delivery_slot, items });
+
   if (!address_id || !delivery_date || !items || items.length === 0) {
+    console.log('Validation failed:', { address_id, delivery_date, items });
     return res.status(400).json({ error: 'address_id, delivery_date, and items are required' });
   }
 
@@ -21,15 +24,21 @@ async function createOrder(req, res) {
 
     // Look up the address to find its zone
     const addrResult = await client.query('SELECT * FROM addresses WHERE id = $1 AND user_id = $2', [address_id, userId]);
-    if (addrResult.rows.length === 0) throw { status: 404, message: 'Address not found' };
+    console.log('Address lookup result:', addrResult.rows.length, 'rows found for address_id:', address_id, 'user_id:', userId);
+    if (addrResult.rows.length === 0) {
+      console.log('Address not found - throwing 404');
+      throw { status: 404, message: 'Address not found' };
+    }
     const zoneId = addrResult.rows[0].zone_id;
 
     // Fetch current prices and stock for all requested products
     const productIds = items.map((i) => i.product_id);
+    console.log('Looking up products:', productIds);
     const productsResult = await client.query(
       `SELECT id, price, stock, stock_reserved FROM products WHERE id = ANY($1) FOR UPDATE`,
       [productIds]
     );
+    console.log('Products found:', productsResult.rows.length, 'out of', productIds.length);
     const productMap = new Map(productsResult.rows.map((p) => [p.id, p]));
 
     let total = 0;
