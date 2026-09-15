@@ -112,29 +112,6 @@ async function updateProductStock(req, res) {
   }
 }
 
-  try {
-    let query, params;
-
-    if (stock !== undefined) {
-      query = 'UPDATE products SET stock = $1 WHERE id = $2 RETURNING *';
-      params = [stock, id];
-    } else if (out_of_stock !== undefined) {
-      // If marking as out of stock, set stock to 0
-      // If marking as in stock, set stock to a default value (e.g., 100)
-      const newStock = out_of_stock ? 0 : 100;
-      query = 'UPDATE products SET stock = $1 WHERE id = $2 RETURNING *';
-      params = [newStock, id];
-    }
-
-    const result = await db.query(query, params);
-    if (result.rows.length === 0) return res.status(404).json({ error: 'Product not found' });
-
-    res.json(result.rows[0]);
-  } catch (err) {
-    res.status(500).json({ error: 'Failed to update stock' });
-  }
-}
-
 // GET /api/admin/products/low-stock
 // Admin endpoint to get products with low stock
 async function getLowStockProducts(req, res) {
