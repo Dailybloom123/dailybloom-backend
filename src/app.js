@@ -18,15 +18,10 @@ const { initSentry, captureError, setUser, clearUser } = require('./config/sentr
 
 const app = express();
 
-// CORS MUST be first - before any other middleware
-app.use(cors({
-  origin: '*',
-  credentials: true,
-  methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization', 'x-admin-key', 'x-csrf-token']
-}));
+// Simple CORS - no options
+app.use(cors());
 
-console.log('✅ CORS configured with wildcard origin');
+console.log('✅ Simple CORS enabled');
 
 const authRoutes = require('./routes/authRoutes');
 const productRoutes = require('./routes/productRoutes');
