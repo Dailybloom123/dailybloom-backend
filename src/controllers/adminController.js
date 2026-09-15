@@ -1,5 +1,6 @@
 const db = require('../config/db');
 const { sendDeliveryUpdateEmail } = require('../utils/email');
+const { deleteImage, extractPublicId } = require('../config/cloudinary');
 
 // GET /api/admin/orders
 // Returns every order across all customers, most recent first — with
@@ -671,6 +672,48 @@ async function assignStagingOrder(req, res) {
   }
 }
 
+// DELETE /api/admin/products/:id
+// Delete a product and its associated image from Cloudinary
+async function deleteProduct(req, res) {
+  try {
+    const { id } = req.params;
+
+    // Get product to check for image
+    const product = await db.query('SELECT * FROM products WHERE id = $1', [id]);
+
+    if (product.rows.length === 0) {
+      return res.status(404).json({ error: 'Product not found' });
+    }
+
+    const productData = product.rows[0];
+
+    // Delete image from Cloudinary if exists
+    if (productData.image_url) {
+      const publicId = extractPublicId(productData.image_url);
+      if (publicId) {
+        try {
+          await deleteImage(publicId);
+        } catch (error) {
+          console.error('Failed to delete image from Cloudinary:', error);
+          // Continue with product deletion even if image deletion fails
+        }
+      }
+    }
+
+    // Delete product from database
+    await db.query('DELETE FROM products WHERE id = $1', [id]);
+
+    // Invalidate product cache
+    const { delPattern } = require('../config/redis');
+    await delPattern('products:*');
+
+    res.json({ success: true, message: 'Product deleted successfully' });
+  } catch (err) {
+    console.error('Error deleting product:', err);
+    res.status(500).json({ error: 'Failed to delete product' });
+  }
+}
+
 module.exports = { 
   listAllOrders, 
   updateOrderStatus, 
@@ -691,5 +734,6 @@ module.exports = {
   getPartnerWarnings,
   warnPartner,
   blockPartner,
-  unblockPartner
+  unblockPartner,
+  deleteProduct
 };
