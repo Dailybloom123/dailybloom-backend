@@ -18,10 +18,32 @@ const { initSentry, captureError, setUser, clearUser } = require('./config/sentr
 
 const app = express();
 
-// Simple CORS - no options
-app.use(cors());
+// CORS configuration - allow all origins (MUST BE FIRST)
+app.use((req, res, next) => {
+  res.header('Access-Control-Allow-Origin', '*');
+  res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, PATCH, DELETE, OPTIONS');
+  res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization, x-admin-key, x-csrf-token');
+  res.header('Access-Control-Allow-Credentials', 'true');
+  
+  if (req.method === 'OPTIONS') {
+    return res.status(200).end();
+  }
+  next();
+});
 
-console.log('✅ Simple CORS enabled');
+console.log('✅ CORS configured with manual headers');
+
+app.use(morgan('combined', { stream: { write: message => logger.info(message.trim()) } }));
+
+// Security: Enhanced rate limiting with multiple tiers
+const limiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 100, // limit each IP to 100 requests per windowMs
+  message: 'Too many requests from this IP, please try again later.',
+  standardHeaders: true,
+  legacyHeaders: false,
+  skip: (req) => req.method === 'OPTIONS' // Skip rate limiting for OPTIONS requests
+});
 
 const authRoutes = require('./routes/authRoutes');
 const productRoutes = require('./routes/productRoutes');
@@ -115,6 +137,21 @@ const allowedOrigins = [
   'http://127.0.0.1:3000'
 ];
 
+// CORS configuration - allow all origins (MUST BE FIRST)
+app.use((req, res, next) => {
+  res.header('Access-Control-Allow-Origin', '*');
+  res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, PATCH, DELETE, OPTIONS');
+  res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization, x-admin-key, x-csrf-token');
+  res.header('Access-Control-Allow-Credentials', 'true');
+  
+  if (req.method === 'OPTIONS') {
+    return res.status(200).end();
+  }
+  next();
+});
+
+console.log('✅ CORS configured with manual headers');
+
 app.use(morgan('combined', { stream: { write: message => logger.info(message.trim()) } }));
 
 // Security: Enhanced rate limiting with multiple tiers
@@ -124,6 +161,7 @@ const limiter = rateLimit({
   message: 'Too many requests from this IP, please try again later.',
   standardHeaders: true,
   legacyHeaders: false,
+  skip: (req) => req.method === 'OPTIONS' // Skip rate limiting for OPTIONS requests
 });
 
 // Strict rate limiting for auth endpoints (prevent brute force)
