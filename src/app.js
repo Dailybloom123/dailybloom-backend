@@ -24,6 +24,8 @@ const corsOptions = {
   allowedHeaders: ['Content-Type', 'Authorization', 'x-admin-key', 'x-csrf-token']
 };
 
+console.log('CORS configured with wildcard origin');
+
 const authRoutes = require('./routes/authRoutes');
 const productRoutes = require('./routes/productRoutes');
 const partnerRoutes = require('./routes/partnerRoutes');
@@ -76,16 +78,17 @@ app.use((req, res, next) => {
 });
 
 // Security: Helmet for HTTP headers with enhanced configuration
-app.use(helmet({
-  contentSecurityPolicy: {
-    directives: {
-      defaultSrc: ["'self'"],
-      styleSrc: ["'self'", "'unsafe-inline'"],
-      scriptSrc: ["'self'"],
-      imgSrc: ["'self'", "data:", "https:"],
-    },
-  },
-}));
+// Temporarily disabled to fix CORS issues
+// app.use(helmet({
+//   contentSecurityPolicy: {
+//     directives: {
+//       defaultSrc: ["'self'"],
+//       styleSrc: ["'self'", "'unsafe-inline'"],
+//       scriptSrc: ["'self'"],
+//       imgSrc: ["'self'", "data:", "https:"],
+//     },
+//   },
+// }));
 
 // Performance: In-memory cache for frequently accessed data
 const cache = new NodeCache({ stdTTL: 300 }); // 5 minutes default TTL
