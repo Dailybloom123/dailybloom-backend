@@ -18,20 +18,16 @@ const { initSentry, captureError, setUser, clearUser } = require('./config/sentr
 
 const app = express();
 
-// ABSOLUTE FIRST: CORS headers before anything else
-app.use((req, res, next) => {
-  res.header('Access-Control-Allow-Origin', '*');
-  res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, PATCH, DELETE, OPTIONS');
-  res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization, x-admin-key, x-csrf-token');
-  res.header('Access-Control-Allow-Credentials', 'true');
-  
-  if (req.method === 'OPTIONS') {
-    return res.status(200).end();
-  }
-  next();
-});
+// CORS - using the cors library with wildcard (MUST BE FIRST)
+app.use(cors({
+  origin: '*',
+  methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'x-admin-key', 'x-csrf-token'],
+  credentials: true,
+  optionsSuccessStatus: 200
+}));
 
-console.log('✅ CORS headers set (FIRST middleware)');
+console.log('✅ CORS configured with cors library');
 
 app.use(morgan('combined', { stream: { write: message => logger.info(message.trim()) } }));
 
