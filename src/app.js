@@ -86,6 +86,7 @@ const cache = new NodeCache({ stdTTL: 300 }); // 5 minutes default TTL
 const allowedOrigins = [
   // Production URLs
   'https://dailybloom-frontend.onrender.com',
+  'https://dailybloom-admin-portal.onrender.com',
   'https://dailybloom-x82y.onrender.com',
   // Local development URLs
   'http://localhost:5173',
