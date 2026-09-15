@@ -4,11 +4,10 @@ module.exports = {
   collectCoverageFrom: [
     'src/**/*.js',
     '!src/server.js',
-    '!src/**/*.test.js'
+    '!src/app.js'
   ],
   testMatch: [
     '**/tests/**/*.test.js'
   ],
-  verbose: true,
-  testTimeout: 10000
+  verbose: true
 };
