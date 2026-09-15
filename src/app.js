@@ -16,6 +16,14 @@ const { metrics } = require('./utils/metrics');
 const monitoring = require('./utils/monitoring');
 const { initSentry, captureError, setUser, clearUser } = require('./config/sentry');
 
+// CORS FIX: Allow all origins temporarily
+const corsOptions = {
+  origin: '*', // Allow all origins
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'x-admin-key', 'x-csrf-token']
+};
+
 const authRoutes = require('./routes/authRoutes');
 const productRoutes = require('./routes/productRoutes');
 const partnerRoutes = require('./routes/partnerRoutes');
@@ -109,26 +117,7 @@ const allowedOrigins = [
   'http://127.0.0.1:3000'
 ];
 
-app.use(cors({
-  origin: function (origin, callback) {
-    // Allow requests with no origin (like mobile apps or curl requests)
-    if (!origin) return callback(null, true);
-    
-    // For development: allow all origins
-    // TODO: Restrict to allowedOrigins in production
-    callback(null, true);
-    
-    // Uncomment for production:
-    // if (allowedOrigins.indexOf(origin) !== -1) {
-    //   callback(null, true);
-    // } else {
-    //   callback(new Error('Not allowed by CORS'));
-    // }
-  },
-  credentials: true,
-  methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization', 'x-admin-key', 'x-csrf-token']
-}));
+app.use(cors(corsOptions));
 
 app.use(morgan('combined', { stream: { write: message => logger.info(message.trim()) } }));
 
