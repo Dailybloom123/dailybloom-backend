@@ -20,12 +20,14 @@ const app = express();
 
 // CORS configuration - allow all origins (MUST BE FIRST)
 app.use((req, res, next) => {
+  console.log('CORS middleware called for:', req.method, req.url);
   res.header('Access-Control-Allow-Origin', '*');
   res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, PATCH, DELETE, OPTIONS');
   res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization, x-admin-key, x-csrf-token');
   res.header('Access-Control-Allow-Credentials', 'true');
   
   if (req.method === 'OPTIONS') {
+    console.log('OPTIONS request - returning 200');
     return res.status(200).end();
   }
   next();
