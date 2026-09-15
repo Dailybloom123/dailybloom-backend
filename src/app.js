@@ -16,6 +16,37 @@ const { metrics } = require('./utils/metrics');
 const monitoring = require('./utils/monitoring');
 const { initSentry, captureError, setUser, clearUser } = require('./config/sentry');
 
+// Import all routes before using them
+const authRoutes = require('./routes/authRoutes');
+const productRoutes = require('./routes/productRoutes');
+const partnerRoutes = require('./routes/partnerRoutes');
+const vendorRoutes = require('./routes/vendorRoutes');
+const orderRoutes = require('./routes/orderRoutes');
+const subscriptionRoutes = require('./routes/subscriptionRoutes');
+const addressRoutes = require('./routes/addressRoutes');
+const adminRoutes = require('./routes/adminRoutes');
+const routingRoutes = require('./routes/routingRoutes');
+const cartRoutes = require('./routes/cartRoutes');
+const gpsTrackingRoutes = require('./routes/gpsTrackingRoutes');
+const whatsappRoutes = require('./routes/whatsappRoutes');
+const paymentRoutes = require('./routes/paymentRoutes');
+const webhookRoutes = require('./routes/webhookRoutes');
+const feedbackRoutes = require('./routes/feedbackRoutes');
+const notificationRoutes = require('./routes/notificationRoutes');
+const refundRoutes = require('./routes/refundRoutes');
+const trackingRoutes = require('./routes/trackingRoutes');
+const inventoryRoutes = require('./routes/inventoryRoutes');
+const stockCommunicationRoutes = require('./routes/stockCommunicationRoutes');
+const orderTrackingRoutes = require('./routes/orderTrackingRoutes');
+const complaintRoutes = require('./routes/complaintRoutes');
+const payoutRoutes = require('./routes/payoutRoutes');
+const walletRoutes = require('./routes/walletRoutes');
+const subscriptionPauseRoutes = require('./routes/subscriptionPauseRoutes');
+const partnerDirectoryRoutes = require('./routes/partnerDirectoryRoutes');
+const withdrawalRoutes = require('./routes/withdrawalRoutes');
+const { errorHandler, asyncHandler, notFoundHandler } = require('./middleware/errorHandler');
+const { csrfProtection, csrfTokenMiddleware } = require('./middleware/csrf');
+
 const app = express();
 
 // CORS - using the cors library with wildcard (MUST BE FIRST)
@@ -137,36 +168,6 @@ app.use(express.json());
 app.get('/api/csrf-token', csrfTokenMiddleware, (req, res) => {
   res.json({ csrfToken: res.locals.csrfToken });
 });
-
-const authRoutes = require('./routes/authRoutes');
-const productRoutes = require('./routes/productRoutes');
-const partnerRoutes = require('./routes/partnerRoutes');
-const vendorRoutes = require('./routes/vendorRoutes');
-const orderRoutes = require('./routes/orderRoutes');
-const subscriptionRoutes = require('./routes/subscriptionRoutes');
-const addressRoutes = require('./routes/addressRoutes');
-const adminRoutes = require('./routes/adminRoutes');
-const routingRoutes = require('./routes/routingRoutes');
-const cartRoutes = require('./routes/cartRoutes');
-const gpsTrackingRoutes = require('./routes/gpsTrackingRoutes');
-const whatsappRoutes = require('./routes/whatsappRoutes');
-const paymentRoutes = require('./routes/paymentRoutes');
-const webhookRoutes = require('./routes/webhookRoutes');
-const feedbackRoutes = require('./routes/feedbackRoutes');
-const notificationRoutes = require('./routes/notificationRoutes');
-const refundRoutes = require('./routes/refundRoutes');
-const trackingRoutes = require('./routes/trackingRoutes');
-const inventoryRoutes = require('./routes/inventoryRoutes');
-const stockCommunicationRoutes = require('./routes/stockCommunicationRoutes');
-const orderTrackingRoutes = require('./routes/orderTrackingRoutes');
-const complaintRoutes = require('./routes/complaintRoutes');
-const payoutRoutes = require('./routes/payoutRoutes');
-const walletRoutes = require('./routes/walletRoutes');
-const subscriptionPauseRoutes = require('./routes/subscriptionPauseRoutes');
-const partnerDirectoryRoutes = require('./routes/partnerDirectoryRoutes');
-const withdrawalRoutes = require('./routes/withdrawalRoutes');
-const { errorHandler, asyncHandler, notFoundHandler } = require('./middleware/errorHandler');
-const { csrfProtection, csrfTokenMiddleware } = require('./middleware/csrf');
 
 // Initialize Sentry for error tracking
 initSentry();
