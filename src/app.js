@@ -18,70 +18,22 @@ const { initSentry, captureError, setUser, clearUser } = require('./config/sentr
 
 const app = express();
 
-// CORS configuration - allow all origins (MUST BE FIRST)
+// ABSOLUTE FIRST: CORS headers before anything else
 app.use((req, res, next) => {
-  console.log('CORS middleware called for:', req.method, req.url);
   res.header('Access-Control-Allow-Origin', '*');
   res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, PATCH, DELETE, OPTIONS');
   res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization, x-admin-key, x-csrf-token');
   res.header('Access-Control-Allow-Credentials', 'true');
   
   if (req.method === 'OPTIONS') {
-    console.log('OPTIONS request - returning 200');
     return res.status(200).end();
   }
   next();
 });
 
-console.log('✅ CORS configured with manual headers');
+console.log('✅ CORS headers set (FIRST middleware)');
 
 app.use(morgan('combined', { stream: { write: message => logger.info(message.trim()) } }));
-
-// Security: Enhanced rate limiting with multiple tiers
-const limiter = rateLimit({
-  windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 100, // limit each IP to 100 requests per windowMs
-  message: 'Too many requests from this IP, please try again later.',
-  standardHeaders: true,
-  legacyHeaders: false,
-  skip: (req) => req.method === 'OPTIONS' // Skip rate limiting for OPTIONS requests
-});
-
-const authRoutes = require('./routes/authRoutes');
-const productRoutes = require('./routes/productRoutes');
-const partnerRoutes = require('./routes/partnerRoutes');
-const vendorRoutes = require('./routes/vendorRoutes');
-const orderRoutes = require('./routes/orderRoutes');
-const subscriptionRoutes = require('./routes/subscriptionRoutes');
-const addressRoutes = require('./routes/addressRoutes');
-const adminRoutes = require('./routes/adminRoutes');
-const routingRoutes = require('./routes/routingRoutes');
-const cartRoutes = require('./routes/cartRoutes');
-const gpsTrackingRoutes = require('./routes/gpsTrackingRoutes');
-const whatsappRoutes = require('./routes/whatsappRoutes');
-const paymentRoutes = require('./routes/paymentRoutes');
-const webhookRoutes = require('./routes/webhookRoutes');
-const feedbackRoutes = require('./routes/feedbackRoutes');
-const notificationRoutes = require('./routes/notificationRoutes');
-const refundRoutes = require('./routes/refundRoutes');
-const trackingRoutes = require('./routes/trackingRoutes');
-const inventoryRoutes = require('./routes/inventoryRoutes');
-const stockCommunicationRoutes = require('./routes/stockCommunicationRoutes');
-const orderTrackingRoutes = require('./routes/orderTrackingRoutes');
-const complaintRoutes = require('./routes/complaintRoutes');
-const payoutRoutes = require('./routes/payoutRoutes');
-const walletRoutes = require('./routes/walletRoutes');
-const subscriptionPauseRoutes = require('./routes/subscriptionPauseRoutes');
-const partnerDirectoryRoutes = require('./routes/partnerDirectoryRoutes');
-const withdrawalRoutes = require('./routes/withdrawalRoutes');
-const { errorHandler, asyncHandler, notFoundHandler } = require('./middleware/errorHandler');
-const { csrfProtection, csrfTokenMiddleware } = require('./middleware/csrf');
-
-// Initialize Sentry for error tracking
-initSentry();
-
-// Use custom logging middleware
-app.use(logApiRequest);
 
 // Metrics collection middleware
 app.use((req, res, next) => {
@@ -111,50 +63,6 @@ app.use((req, res, next) => {
 
 // Performance: In-memory cache for frequently accessed data
 const cache = new NodeCache({ stdTTL: 300 }); // 5 minutes default TTL
-
-// Security: CORS configuration
-const allowedOrigins = [
-  // Production URLs
-  'https://dailybloom-frontend.onrender.com',
-  'https://dailybloom-admin-portal.onrender.com',
-  'https://dailybloom-x82y.onrender.com',
-  // Local development URLs
-  'http://localhost:5173',
-  'http://localhost:5174',
-  'http://localhost:5175',
-  'http://localhost:5176',
-  'http://localhost:5177',
-  'http://localhost:5178',
-  'http://localhost:5179',
-  'http://localhost:5180',
-  'http://localhost:3000',
-  'http://127.0.0.1:5173',
-  'http://127.0.0.1:5174',
-  'http://127.0.0.1:5175',
-  'http://127.0.0.1:5176',
-  'http://127.0.0.1:5177',
-  'http://127.0.0.1:5178',
-  'http://127.0.0.1:5179',
-  'http://127.0.0.1:5180',
-  'http://127.0.0.1:3000'
-];
-
-// CORS configuration - allow all origins (MUST BE FIRST)
-app.use((req, res, next) => {
-  res.header('Access-Control-Allow-Origin', '*');
-  res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, PATCH, DELETE, OPTIONS');
-  res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization, x-admin-key, x-csrf-token');
-  res.header('Access-Control-Allow-Credentials', 'true');
-  
-  if (req.method === 'OPTIONS') {
-    return res.status(200).end();
-  }
-  next();
-});
-
-console.log('✅ CORS configured with manual headers');
-
-app.use(morgan('combined', { stream: { write: message => logger.info(message.trim()) } }));
 
 // Security: Enhanced rate limiting with multiple tiers
 const limiter = rateLimit({
@@ -234,6 +142,39 @@ app.get('/api/csrf-token', csrfTokenMiddleware, (req, res) => {
   res.json({ csrfToken: res.locals.csrfToken });
 });
 
+const authRoutes = require('./routes/authRoutes');
+const productRoutes = require('./routes/productRoutes');
+const partnerRoutes = require('./routes/partnerRoutes');
+const vendorRoutes = require('./routes/vendorRoutes');
+const orderRoutes = require('./routes/orderRoutes');
+const subscriptionRoutes = require('./routes/subscriptionRoutes');
+const addressRoutes = require('./routes/addressRoutes');
+const adminRoutes = require('./routes/adminRoutes');
+const routingRoutes = require('./routes/routingRoutes');
+const cartRoutes = require('./routes/cartRoutes');
+const gpsTrackingRoutes = require('./routes/gpsTrackingRoutes');
+const whatsappRoutes = require('./routes/whatsappRoutes');
+const paymentRoutes = require('./routes/paymentRoutes');
+const webhookRoutes = require('./routes/webhookRoutes');
+const feedbackRoutes = require('./routes/feedbackRoutes');
+const notificationRoutes = require('./routes/notificationRoutes');
+const refundRoutes = require('./routes/refundRoutes');
+const trackingRoutes = require('./routes/trackingRoutes');
+const inventoryRoutes = require('./routes/inventoryRoutes');
+const stockCommunicationRoutes = require('./routes/stockCommunicationRoutes');
+const orderTrackingRoutes = require('./routes/orderTrackingRoutes');
+const complaintRoutes = require('./routes/complaintRoutes');
+const payoutRoutes = require('./routes/payoutRoutes');
+const walletRoutes = require('./routes/walletRoutes');
+const subscriptionPauseRoutes = require('./routes/subscriptionPauseRoutes');
+const partnerDirectoryRoutes = require('./routes/partnerDirectoryRoutes');
+const withdrawalRoutes = require('./routes/withdrawalRoutes');
+const { errorHandler, asyncHandler, notFoundHandler } = require('./middleware/errorHandler');
+const { csrfProtection, csrfTokenMiddleware } = require('./middleware/csrf');
+
+// Initialize Sentry for error tracking
+initSentry();
+
 app.use('/api/auth', authLimiter, authRoutes);
 app.use('/api/products', productRoutes);
 app.use('/api/partners', partnerRoutes);
@@ -282,74 +223,22 @@ app.get('/health', async (req, res) => {
       uptime: process.uptime(),
       environment: process.env.NODE_ENV || 'development',
       memory: process.memoryUsage(),
-      services: servicesHealth.checks
+      services: servicesHealth
     };
-    
-    const statusCode = servicesHealth.overall === 'healthy' ? 200 : 503;
-    res.status(statusCode).json(healthcheck);
+    res.status(servicesHealth.overall === 'healthy' ? 200 : 503).json(healthcheck);
   } catch (error) {
-    logError('Health check failed', { error: error.message });
-    res.status(503).json({
-      status: 'unhealthy',
-      timestamp: new Date().toISOString(),
-      error: 'Health check failed'
-    });
+    console.error('Health check failed:', error);
+    res.status(503).json({ status: 'unhealthy', error: 'Health check failed' });
   }
 });
 
-// API health check endpoint (for consistency with other API routes)
-app.get('/api/health', async (req, res) => {
-  try {
-    const servicesHealth = await checkServicesHealth();
-    const healthcheck = {
-      status: servicesHealth.overall === 'healthy' ? 'ok' : 'degraded',
-      timestamp: new Date().toISOString(),
-      uptime: process.uptime(),
-      environment: process.env.NODE_ENV || 'development',
-      services: servicesHealth.checks
-    };
-    
-    const statusCode = servicesHealth.overall === 'healthy' ? 200 : 503;
-    res.status(statusCode).json(healthcheck);
-  } catch (error) {
-    res.status(503).json({
-      status: 'error',
-      timestamp: new Date().toISOString(),
-      error: 'Health check failed'
-    });
-  }
-});
-
-// API status endpoint
-app.get('/api/status', async (req, res) => {
-  try {
-    const servicesHealth = await checkServicesHealth();
-    res.json({
-      status: servicesHealth.overall === 'healthy' ? 'operational' : 'degraded',
-      version: '1.0.0',
-      timestamp: new Date().toISOString(),
-      services: servicesHealth.checks
-    });
-  } catch (error) {
-    res.json({
-      status: 'degraded',
-      version: '1.0.0',
-      timestamp: new Date().toISOString(),
-      error: error.message
-    });
-  }
-});
-
-// Metrics endpoint for monitoring
-app.get('/api/metrics', (req, res) => {
-  res.json(metrics.getMetrics());
-});
-
-// Use enhanced error handler from middleware
-app.use(errorHandler);
+// Use custom logging middleware
+app.use(logApiRequest);
 
 // 404 handler
 app.use(notFoundHandler);
 
+// Error handler (must be last)
+app.use(errorHandler);
+
 module.exports = app;
-// Force redeploy
