@@ -25,7 +25,12 @@ const csrfProtection = (req, res, next) => {
   }
 
   // Skip CSRF for API routes that use JWT authentication
-  if (req.path.startsWith('/api/') && req.headers.authorization) {
+  if (req.headers.authorization) {
+    return next();
+  }
+
+  // Skip CSRF if session is not configured (API-only usage)
+  if (!req.session) {
     return next();
   }
 
@@ -47,7 +52,9 @@ const csrfProtection = (req, res, next) => {
  */
 const csrfTokenMiddleware = (req, res, next) => {
   if (!req.session) {
-    return res.status(500).json({ error: 'Session not configured' });
+    // If session is not configured, skip CSRF (for API-only usage)
+    res.locals.csrfToken = null;
+    return next();
   }
 
   // Generate new token if not exists

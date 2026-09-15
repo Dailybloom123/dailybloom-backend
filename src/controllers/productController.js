@@ -8,11 +8,16 @@ async function listProducts(req, res) {
   const { zone_id, category } = req.query;
   if (!zone_id) return res.status(400).json({ error: 'zone_id is required' });
 
-  // Try to get from cache first
+  // Try to get from cache first (skip if Redis not configured)
   const cacheKey = `products:${zone_id}:${category || 'all'}`;
-  const cached = await get(cacheKey);
-  if (cached) {
-    return res.json(cached);
+  try {
+    const cached = await get(cacheKey);
+    if (cached) {
+      return res.json(cached);
+    }
+  } catch (error) {
+    console.error('Cache error:', error);
+    // Continue without cache
   }
 
   const conditions = ['v.zone_id = $1', 'p.is_active = true', 'v.is_active = true'];
@@ -32,8 +37,13 @@ async function listProducts(req, res) {
     params
   );
 
-  // Cache the result for 5 minutes
-  await set(cacheKey, result.rows, 300);
+  // Cache the result for 5 minutes (skip if Redis not configured)
+  try {
+    await set(cacheKey, result.rows, 300);
+  } catch (error) {
+    console.error('Cache set error:', error);
+    // Continue without caching
+  }
 
   res.json(result.rows);
 }
