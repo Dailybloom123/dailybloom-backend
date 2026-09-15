@@ -149,6 +149,24 @@ const paymentLimiter = rateLimit({
   legacyHeaders: false,
 });
 
+// Strict rate limiting for admin endpoints (prevent admin abuse)
+const adminLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 50, // limit each IP to 50 admin requests per windowMs
+  message: 'Too many admin requests, please try again later.',
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+
+// Strict rate limiting for order endpoints (prevent order spam)
+const orderLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 30, // limit each IP to 30 order requests per windowMs
+  message: 'Too many order requests, please try again later.',
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+
 // Session configuration for OAuth
 app.use(session({
   secret: process.env.JWT_SECRET || 'dailybloom-session-secret',
@@ -176,17 +194,22 @@ app.use('/api/webhooks', express.raw({ type: 'application/json' }), webhookRoute
 
 app.use(express.json());
 
+// CSRF token endpoint - get token
+app.get('/api/csrf-token', csrfTokenMiddleware, (req, res) => {
+  res.json({ csrfToken: res.locals.csrfToken });
+});
+
 app.use('/api/auth', authLimiter, authRoutes);
 app.use('/api/products', productRoutes);
 app.use('/api/partners', partnerRoutes);
 app.use('/api/vendors', vendorRoutes);
-app.use('/api/orders', orderRoutes);
-app.use('/api/subscriptions', subscriptionRoutes);
-app.use('/api/addresses', addressRoutes);
-app.use('/api/admin', adminRoutes);
-app.use('/api/payments', paymentLimiter, paymentRoutes);
-app.use('/api/routing', routingRoutes);
-app.use('/api/cart', cartRoutes);
+app.use('/api/orders', orderLimiter, csrfProtection, orderRoutes);
+app.use('/api/subscriptions', csrfProtection, subscriptionRoutes);
+app.use('/api/addresses', csrfProtection, addressRoutes);
+app.use('/api/admin', adminLimiter, csrfProtection, adminRoutes);
+app.use('/api/payments', paymentLimiter, csrfProtection, paymentRoutes);
+app.use('/api/routing', csrfProtection, routingRoutes);
+app.use('/api/cart', csrfProtection, cartRoutes);
 app.use('/api/tracking', gpsTrackingRoutes);
 app.use('/api/whatsapp', whatsappRoutes);
 app.use('/api/wallet', walletRoutes);
