@@ -272,11 +272,11 @@ const googleAuth = async (req, res) => {
 
     // Determine redirect URI based on origin or environment
     const origin = req.headers.origin || req.headers.referer;
-    let redirectUri = process.env.GOOGLE_REDIRECT_URI;
+    let redirectUri = process.env.GOOGLE_REDIRECT_URL || process.env.GOOGLE_REDIRECT_URI;
 
     // Use production redirect URI if request comes from production frontend
     if (origin && origin.includes('dailybloom-frontend.onrender.com')) {
-      redirectUri = 'https://dailybloom-frontend.onrender.com/';
+      redirectUri = 'https://dailybloom-frontend.onrender.com';
     }
     // Use alternative port if request comes from localhost:5174
     else if (origin && origin.includes('localhost:5174')) {
