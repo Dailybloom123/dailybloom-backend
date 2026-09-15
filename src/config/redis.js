@@ -1,40 +1,62 @@
 const redis = require('redis');
 
 let redisClient = null;
+let redisAvailable = false;
 
 function getRedisClient() {
-  if (!redisClient) {
-    redisClient = redis.createClient({
-      url: process.env.REDIS_URL || 'redis://localhost:6379',
-      socket: {
-        reconnectStrategy: (retries) => {
-          if (retries > 10) {
-            return new Error('Too many retries');
+  if (!redisClient && process.env.REDIS_URL) {
+    try {
+      redisClient = redis.createClient({
+        url: process.env.REDIS_URL,
+        socket: {
+          reconnectStrategy: (retries) => {
+            if (retries > 10) {
+              redisAvailable = false;
+              return new Error('Too many retries');
+            }
+            return Math.min(retries * 100, 3000);
           }
-          return Math.min(retries * 100, 3000);
         }
-      }
-    });
+      });
 
-    redisClient.on('error', (err) => {
-      console.error('Redis Client Error:', err);
-    });
+      redisClient.on('error', (err) => {
+        console.error('Redis Client Error:', err);
+        redisAvailable = false;
+      });
 
-    redisClient.on('connect', () => {
-      console.log('✅ Redis Client Connected');
-    });
+      redisClient.on('connect', () => {
+        console.log('✅ Redis Client Connected');
+        redisAvailable = true;
+      });
 
-    redisClient.on('reconnecting', () => {
-      console.log('⚠️ Redis Client Reconnecting...');
-    });
+      redisClient.on('reconnecting', () => {
+        console.log('⚠️ Redis Client Reconnecting...');
+      });
+
+      // Connect to Redis
+      redisClient.connect().catch(err => {
+        console.error('Failed to connect to Redis:', err);
+        redisAvailable = false;
+      });
+    } catch (error) {
+      console.error('Failed to create Redis client:', error);
+      redisAvailable = false;
+    }
   }
 
   return redisClient;
 }
 
 async function get(key) {
+  if (!process.env.REDIS_URL) {
+    return null; // Redis not configured
+  }
+
   try {
     const client = getRedisClient();
+    if (!client || !redisAvailable) {
+      return null;
+    }
     const value = await client.get(key);
     return value ? JSON.parse(value) : null;
   } catch (error) {
@@ -44,8 +66,15 @@ async function get(key) {
 }
 
 async function set(key, value, ttl = 3600) {
+  if (!process.env.REDIS_URL) {
+    return false; // Redis not configured
+  }
+
   try {
     const client = getRedisClient();
+    if (!client || !redisAvailable) {
+      return false;
+    }
     await client.setEx(key, ttl, JSON.stringify(value));
     return true;
   } catch (error) {
@@ -55,8 +84,15 @@ async function set(key, value, ttl = 3600) {
 }
 
 async function del(key) {
+  if (!process.env.REDIS_URL) {
+    return false; // Redis not configured
+  }
+
   try {
     const client = getRedisClient();
+    if (!client || !redisAvailable) {
+      return false;
+    }
     await client.del(key);
     return true;
   } catch (error) {
@@ -66,8 +102,15 @@ async function del(key) {
 }
 
 async function delPattern(pattern) {
+  if (!process.env.REDIS_URL) {
+    return false; // Redis not configured
+  }
+
   try {
     const client = getRedisClient();
+    if (!client || !redisAvailable) {
+      return false;
+    }
     const keys = await client.keys(pattern);
     if (keys.length > 0) {
       await client.del(keys);
@@ -80,8 +123,15 @@ async function delPattern(pattern) {
 }
 
 async function flushAll() {
+  if (!process.env.REDIS_URL) {
+    return false; // Redis not configured
+  }
+
   try {
     const client = getRedisClient();
+    if (!client || !redisAvailable) {
+      return false;
+    }
     await client.flushAll();
     return true;
   } catch (error) {

@@ -1,12 +1,17 @@
 const cloudinary = require('cloudinary').v2;
 
 // Configure Cloudinary
-cloudinary.config({
-  cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
-  api_key: process.env.CLOUDINARY_API_KEY,
-  api_secret: process.env.CLOUDINARY_API_SECRET,
-  secure: true
-});
+if (process.env.CLOUDINARY_CLOUD_NAME && process.env.CLOUDINARY_API_KEY && process.env.CLOUDINARY_API_SECRET) {
+  cloudinary.config({
+    cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
+    api_key: process.env.CLOUDINARY_API_KEY,
+    api_secret: process.env.CLOUDINARY_API_SECRET,
+    secure: true
+  });
+  console.log('✅ Cloudinary configured');
+} else {
+  console.log('⚠️ Cloudinary not configured - image upload disabled');
+}
 
 /**
  * Upload image to Cloudinary
@@ -15,6 +20,10 @@ cloudinary.config({
  * @returns {Promise<Object>} Upload result
  */
 async function uploadImage(filePath, folder = 'dailybloom/products') {
+  if (!process.env.CLOUDINARY_CLOUD_NAME) {
+    throw new Error('Cloudinary not configured');
+  }
+
   try {
     const result = await cloudinary.uploader.upload(filePath, {
       folder,
@@ -41,6 +50,10 @@ async function uploadImage(filePath, folder = 'dailybloom/products') {
  * @returns {Promise<Object>} Upload result
  */
 async function uploadImageFromBuffer(buffer, folder = 'dailybloom/products') {
+  if (!process.env.CLOUDINARY_CLOUD_NAME) {
+    throw new Error('Cloudinary not configured');
+  }
+
   try {
     const result = await cloudinary.uploader.upload_stream(
       {
@@ -77,6 +90,11 @@ async function uploadImageFromBuffer(buffer, folder = 'dailybloom/products') {
  * @returns {Promise<Object>} Delete result
  */
 async function deleteImage(publicId) {
+  if (!process.env.CLOUDINARY_CLOUD_NAME) {
+    console.log('Cloudinary not configured - skipping image deletion');
+    return { result: 'ok' };
+  }
+
   try {
     const result = await cloudinary.uploader.destroy(publicId);
     return result;
