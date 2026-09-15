@@ -1,6 +1,7 @@
 const db = require('../config/db');
 const { createNotification } = require('./notificationController');
 const { sendWhatsAppOrder, sendWhatsAppConfirmation } = require('../utils/whatsapp');
+const { sendOrderConfirmationEmail, sendDeliveryUpdateEmail } = require('../utils/email');
 
 // POST /api/orders
 // Body: { address_id, delivery_date, delivery_slot, items: [{ product_id, quantity }] }
@@ -119,9 +120,25 @@ async function createOrder(req, res) {
         
         await sendWhatsAppOrder(user.phone, orderDetails);
       }
-    } catch (whatsappError) {
-      console.error('WhatsApp notification failed:', whatsappError);
-      // Don't fail the order if WhatsApp fails
+      
+      // Send email confirmation if configured
+      if (user.email) {
+        const emailOrderDetails = {
+          orderId: order.id,
+          total: total,
+          deliveryDate: delivery_date,
+          items: items.map(item => ({
+            name: productMap.get(item.product_id).name,
+            quantity: item.quantity,
+            price: parseFloat(productMap.get(item.product_id).price)
+          }))
+        };
+        
+        await sendOrderConfirmationEmail(user.email, emailOrderDetails);
+      }
+    } catch (notificationError) {
+      console.error('Notification failed:', notificationError);
+      // Don't fail the order if notifications fail
     }
     
     res.status(201).json(order);

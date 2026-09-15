@@ -1,4 +1,5 @@
 const db = require('../config/db');
+const { sendDeliveryUpdateEmail } = require('../utils/email');
 
 // GET /api/admin/orders
 // Returns every order across all customers, most recent first — with
@@ -49,7 +50,29 @@ async function updateOrderStatus(req, res) {
   );
 
   if (result.rows.length === 0) return res.status(404).json({ error: 'Order not found' });
-  res.json(result.rows[0]);
+  
+  const updatedOrder = result.rows[0];
+  
+  // Send email notification for status updates
+  try {
+    const userResult = await db.query('SELECT * FROM users WHERE id = $1', [updatedOrder.user_id]);
+    const user = userResult.rows[0];
+    
+    if (user.email) {
+      const emailOrderDetails = {
+        orderId: updatedOrder.id,
+        status: status,
+        deliveryDate: updatedOrder.delivery_date
+      };
+      
+      await sendDeliveryUpdateEmail(user.email, emailOrderDetails);
+    }
+  } catch (emailError) {
+    console.error('Email notification failed:', emailError);
+    // Don't fail the update if email fails
+  }
+  
+  res.json(updatedOrder);
 }
 
 // GET /api/admin/stats
