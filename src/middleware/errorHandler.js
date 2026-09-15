@@ -1,4 +1,5 @@
 const { logger, logError } = require('../utils/logger');
+const { captureError } = require('../config/sentry');
 
 // Custom error classes
 class AppError extends Error {
@@ -58,6 +59,14 @@ const errorHandler = (err, req, res, next) => {
   logError('Error occurred:', {
     message: err.message,
     stack: err.stack,
+    url: req.url,
+    method: req.method,
+    ip: req.ip,
+    userAgent: req.get('user-agent')
+  });
+
+  // Capture error in Sentry
+  captureError(err, {
     url: req.url,
     method: req.method,
     ip: req.ip,

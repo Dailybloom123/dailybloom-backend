@@ -14,6 +14,7 @@ const { logger, logApiRequest, logError, logSecurityEvent } = require('./utils/l
 const { checkServicesHealth } = require('./utils/healthCheck');
 const { metrics } = require('./utils/metrics');
 const monitoring = require('./utils/monitoring');
+const { initSentry, captureError, setUser, clearUser } = require('./config/sentry');
 
 const authRoutes = require('./routes/authRoutes');
 const productRoutes = require('./routes/productRoutes');
@@ -44,6 +45,9 @@ const partnerDirectoryRoutes = require('./routes/partnerDirectoryRoutes');
 const withdrawalRoutes = require('./routes/withdrawalRoutes');
 const { errorHandler, asyncHandler, notFoundHandler } = require('./middleware/errorHandler');
 const { csrfProtection, csrfTokenMiddleware } = require('./middleware/csrf');
+
+// Initialize Sentry for error tracking
+initSentry();
 
 const app = express();
 
