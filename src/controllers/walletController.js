@@ -7,7 +7,7 @@ const { asyncHandler, AuthenticationError, ValidationError } = require('../middl
 
 // Get wallet balance
 const getWalletBalance = asyncHandler(async (req, res) => {
-  const userId = req.user.id;
+  const userId = req.user.userId;
   const balance = await WalletService.getBalance(userId);
 
   res.json({
@@ -18,7 +18,7 @@ const getWalletBalance = asyncHandler(async (req, res) => {
 
 // Get transaction history
 const getTransactionHistory = asyncHandler(async (req, res) => {
-  const userId = req.user.id;
+  const userId = req.user.userId;
   const limit = parseInt(req.query.limit) || 50;
   const offset = parseInt(req.query.offset) || 0;
 
@@ -34,7 +34,7 @@ const getTransactionHistory = asyncHandler(async (req, res) => {
 // Get single transaction details
 const getTransaction = asyncHandler(async (req, res) => {
   const { transactionId } = req.params;
-  const userId = req.user.id;
+  const userId = req.user.userId;
 
   const transaction = await WalletService.getTransaction(transactionId);
 
@@ -78,7 +78,7 @@ const adjustWalletBalance = asyncHandler(async (req, res) => {
 
 // Debit wallet (for order payments)
 const debitWallet = asyncHandler(async (req, res) => {
-  const userId = req.user.id;
+  const userId = req.user.userId;
   const { amount, type, description, reference_order_id } = req.body;
 
   if (!amount || !type) {
@@ -103,7 +103,7 @@ const debitWallet = asyncHandler(async (req, res) => {
 
 // Credit wallet (for refunds or top-ups)
 const creditWallet = asyncHandler(async (req, res) => {
-  const userId = req.user.id;
+  const userId = req.user.userId;
   const { amount, type, description, reference_payment_id } = req.body;
 
   if (!amount || !type) {
