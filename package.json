@@ -29,6 +29,7 @@
     "passport-google-oauth20": "^2.0.0",
     "pg": "^8.11.5",
     "razorpay": "^2.9.6",
+    "redis": "^6.2.1",
     "resend": "^3.5.0",
     "twilio": "^4.19.0",
     "uuid": "^14.0.2",

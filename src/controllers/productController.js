@@ -1,4 +1,5 @@
 const db = require('../config/db');
+const { get, set, delPattern } = require('../config/redis');
 
 // GET /api/products?zone_id=...&category=...
 // Browsing is always scoped to a delivery zone, since only vendors in that
@@ -6,6 +7,13 @@ const db = require('../config/db');
 async function listProducts(req, res) {
   const { zone_id, category } = req.query;
   if (!zone_id) return res.status(400).json({ error: 'zone_id is required' });
+
+  // Try to get from cache first
+  const cacheKey = `products:${zone_id}:${category || 'all'}`;
+  const cached = await get(cacheKey);
+  if (cached) {
+    return res.json(cached);
+  }
 
   const conditions = ['v.zone_id = $1', 'p.is_active = true', 'v.is_active = true'];
   const params = [zone_id];
@@ -23,6 +31,9 @@ async function listProducts(req, res) {
      ORDER BY p.category, p.name`,
     params
   );
+
+  // Cache the result for 5 minutes
+  await set(cacheKey, result.rows, 300);
 
   res.json(result.rows);
 }
@@ -50,6 +61,46 @@ async function updateProductStock(req, res) {
   if (stock === undefined && out_of_stock === undefined) {
     return res.status(400).json({ error: 'stock or out_of_stock is required' });
   }
+
+  try {
+    const updates = [];
+    const params = [];
+    let paramCount = 0;
+
+    if (stock !== undefined) {
+      paramCount++;
+      updates.push(`stock = $${paramCount}`);
+      params.push(stock);
+    }
+
+    if (out_of_stock !== undefined) {
+      paramCount++;
+      updates.push(`is_active = $${paramCount}`);
+      params.push(!out_of_stock);
+    }
+
+    paramCount++;
+    params.push(id);
+
+    const result = await db.query(
+      `UPDATE products SET ${updates.join(', ')} WHERE id = $${paramCount} RETURNING *`,
+      params
+    );
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: 'Product not found' });
+    }
+
+    // Invalidate all product caches since stock changed
+    const { delPattern } = require('../config/redis');
+    await delPattern('products:*');
+
+    res.json(result.rows[0]);
+  } catch (err) {
+    console.error('Error updating product stock:', err);
+    res.status(500).json({ error: 'Failed to update product stock' });
+  }
+}
 
   try {
     let query, params;
