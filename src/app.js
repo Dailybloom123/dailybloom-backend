@@ -179,7 +179,6 @@ app.use('/api/auth', authLimiter, authRoutes);
 app.use('/api/products', productRoutes);
 app.use('/api/partners', partnerRoutes);
 app.use('/api/vendors', vendorRoutes);
-app.use('/api/orders', orderRoutes); // Temporarily disabled rate limiter for debugging
 app.use('/api/subscriptions', subscriptionRoutes);
 app.use('/api/addresses', addressRoutes);
 app.use('/api/admin', adminLimiter, adminRoutes);
