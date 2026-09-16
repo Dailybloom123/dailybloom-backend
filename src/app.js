@@ -49,6 +49,9 @@ const { csrfProtection, csrfTokenMiddleware } = require('./middleware/csrf');
 
 const app = express();
 
+// Trust proxy for Render (required for rate limiter to work correctly)
+app.set('trust proxy', true);
+
 // CORS - using the cors library with wildcard (MUST BE FIRST)
 app.use(cors({
   origin: '*',
