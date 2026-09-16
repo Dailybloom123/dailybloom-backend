@@ -24,7 +24,8 @@ const schemas = {
       })
     ).min(1).required(),
     address_id: Joi.string().uuid().required(),
-    delivery_slot: Joi.string().valid('today_evening', 'tomorrow_morning', 'tomorrow_evening').required()
+    delivery_date: Joi.string().required(),
+    delivery_slot: Joi.string().optional()
   }),
 
   // Address validation
