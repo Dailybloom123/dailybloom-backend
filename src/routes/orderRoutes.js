@@ -7,7 +7,7 @@ const { validate, schemas } = require('../middleware/validate');
 // Every order route requires a logged-in user
 router.use(requireAuth);
 
-router.post('/', createOrder); // Temporarily disabled validation for debugging
+router.post('/', validate(schemas.createOrder), createOrder);
 router.get('/', listOrders);
 router.get('/:id', getOrder);
 router.post('/:id/confirm-stock', confirmOrderStock);
