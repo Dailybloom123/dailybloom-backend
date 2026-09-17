@@ -4,12 +4,12 @@ const { get, set, delPattern } = require('../config/redis');
 // GET /api/products?zone_id=...&category=...
 // Browsing is always scoped to a delivery zone, since only vendors in that
 // zone can actually deliver to the customer.
+// If no zone_id is provided, return all active products (for catalog browsing)
 async function listProducts(req, res) {
   const { zone_id, category } = req.query;
-  if (!zone_id) return res.status(400).json({ error: 'zone_id is required' });
 
   // Try to get from cache first (skip if Redis not configured)
-  const cacheKey = `products:${zone_id}:${category || 'all'}`;
+  const cacheKey = `products:${zone_id || 'all'}:${category || 'all'}`;
   try {
     const cached = await get(cacheKey);
     if (cached) {
@@ -20,12 +20,21 @@ async function listProducts(req, res) {
     // Continue without cache
   }
 
-  const conditions = ['v.zone_id = $1', 'p.is_active = true', 'v.is_active = true'];
-  const params = [zone_id];
+  const conditions = ['p.is_active = true', 'v.is_active = true'];
+  const params = [];
+
+  let paramCount = 0;
+
+  if (zone_id) {
+    paramCount++;
+    params.push(zone_id);
+    conditions.push(`v.zone_id = $${paramCount}`);
+  }
 
   if (category) {
+    paramCount++;
     params.push(category);
-    conditions.push(`p.category = $${params.length}`);
+    conditions.push(`p.category = $${paramCount}`);
   }
 
   const result = await db.query(
