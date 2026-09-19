@@ -1,23 +1,48 @@
 const { Pool } = require('pg');
-const fs = require('fs');
-const path = require('path');
+require('dotenv').config();
 
 const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
+  ssl: false // Disable SSL for local development
 });
 
 async function runMigration() {
   const client = await pool.connect();
   try {
-    console.log('Starting migration 030: Partner Profile...');
-    const migrationPath = path.join(__dirname, '../migrations/030_partner_profile.sql');
-    const migrationSQL = fs.readFileSync(migrationPath, 'utf8');
-
     await client.query('BEGIN');
-    await client.query(migrationSQL);
+    
+    // Create sequence for display order IDs
+    await client.query(`
+      CREATE SEQUENCE IF NOT EXISTS display_order_id_seq
+        START WITH 1001
+        INCREMENT BY 1
+        NO MINVALUE
+        NO MAXVALUE
+        CACHE 1
+    `);
+    
+    // Add display_order_id column (no default - will be set in application code)
+    await client.query(`
+      ALTER TABLE orders 
+      ADD COLUMN IF NOT EXISTS display_order_id VARCHAR(20) UNIQUE
+    `);
+    
+    // Create index
+    await client.query(`
+      CREATE INDEX IF NOT EXISTS idx_orders_display_order_id ON orders(display_order_id)
+    `);
+    
+    // Add comments
+    await client.query(`
+      COMMENT ON COLUMN orders.display_order_id IS 'Human-readable display order ID (e.g., DB-1001) for customer-facing UI'
+    `);
+    
+    await client.query(`
+      COMMENT ON SEQUENCE display_order_id_seq IS 'Sequence for generating human-readable order IDs'
+    `);
+    
     await client.query('COMMIT');
-
-    console.log('✅ Migration 030 completed successfully!');
+    console.log('✅ Migration 030 completed successfully');
   } catch (error) {
     await client.query('ROLLBACK');
     console.error('❌ Migration 030 failed:', error);

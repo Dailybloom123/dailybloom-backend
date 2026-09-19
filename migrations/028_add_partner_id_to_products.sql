@@ -1,17 +1,3 @@
-const { Pool } = require('pg');
-require('dotenv').config();
-
-const pool = new Pool({
-  connectionString: process.env.DATABASE_URL,
-  ssl: false // Disable SSL for local development
-});
-
-async function runMigration() {
-  const client = await pool.connect();
-  try {
-    await client.query('BEGIN');
-    
-    const migrationSQL = `
 -- Migration 028: Add partner_id foreign key to products table
 -- This establishes the relationship between products and partners
 
@@ -27,19 +13,3 @@ CREATE INDEX IF NOT EXISTS idx_products_vendor_id ON products(vendor_id);
 -- Add comment
 COMMENT ON COLUMN products.partner_id IS 'Foreign key to the partner (vendor) who owns this product';
 COMMENT ON COLUMN products.vendor_id IS 'Foreign key to the vendor account (alternative to partner_id)';
-    `;
-    
-    await client.query(migrationSQL);
-    await client.query('COMMIT');
-    console.log('✅ Migration 028 completed successfully');
-  } catch (error) {
-    await client.query('ROLLBACK');
-    console.error('❌ Migration 028 failed:', error);
-    throw error;
-  } finally {
-    client.release();
-    await pool.end();
-  }
-}
-
-runMigration().catch(console.error);
