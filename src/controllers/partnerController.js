@@ -52,7 +52,7 @@ const sendErrorResponse = (res, statusCode, message, details = null) => {
 };
 
 // GET /api/partner/available-orders
-// Returns orders available for this partner to accept (category-matched, unassigned)
+// Returns orders available for this partner to accept (based on order_items.partner_id)
 async function getAvailableOrders(req, res) {
   const partnerId = req.user?.id; // Use user ID from JWT
   try {
@@ -68,28 +68,30 @@ async function getAvailableOrders(req, res) {
     
     const partnerType = partnerResult.rows[0].partner_type;
     
-    // Get orders that are:
-    // 1. In pending status
-    // 2. Not yet assigned to any partner
+    // Get orders that have items assigned to this partner (via order_items.partner_id)
+    // This supports multi-vertical routing - partners only see their assigned items
     const result = await db.query(
       `SELECT DISTINCT o.*, u.name AS customer_name, u.phone AS customer_phone,
                 a.line1, a.city, a.pincode, a.locality, a.latitude, a.longitude
          FROM orders o
          JOIN users u ON u.id = o.user_id
          JOIN addresses a ON a.id = o.address_id
+         JOIN order_items oi ON oi.order_id = o.id
          WHERE o.status = 'pending'
-         AND o.partner_id IS NULL
-         ORDER BY o.created_at ASC`
+         AND oi.partner_id = $1
+         ORDER BY o.created_at ASC`,
+      [partnerId]
     );
 
     const orders = result.rows;
     for (const order of orders) {
+      // Only get items assigned to this partner
       const itemsResult = await db.query(
         `SELECT oi.*, p.name AS product_name 
          FROM order_items oi
          JOIN products p ON p.id = oi.product_id 
-         WHERE oi.order_id = $1`,
-        [order.id]
+         WHERE oi.order_id = $1 AND oi.partner_id = $2`,
+        [order.id, partnerId]
       );
       order.items = itemsResult.rows;
 
@@ -500,6 +502,163 @@ async function updateProductStock(req, res) {
   }
 }
 
+// POST /api/partner/order-items/:itemId/accept
+// Partner accepts a specific order item (item-level acceptance)
+async function acceptOrderItem(req, res) {
+  const { itemId } = req.params;
+  const partnerId = req.user?.id;
+
+  try {
+    if (!partnerId) {
+      return sendErrorResponse(res, 401, 'Unauthorized: Invalid partner ID');
+    }
+
+    const client = await db.pool.connect();
+    try {
+      await client.query('BEGIN');
+
+      // Check if item exists and belongs to this partner
+      const itemResult = await client.query(
+        `SELECT oi.*, o.status as order_status 
+         FROM order_items oi
+         JOIN orders o ON o.id = oi.order_id
+         WHERE oi.id = $1 AND oi.partner_id = $2 FOR UPDATE`,
+        [itemId, partnerId]
+      );
+
+      if (itemResult.rows.length === 0) {
+        throw { status: 404, message: 'Order item not found or not assigned to you' };
+      }
+
+      const item = itemResult.rows[0];
+
+      // Update item status to accepted
+      await client.query(
+        `UPDATE order_items SET item_status = 'accepted', updated_at = now() WHERE id = $1`,
+        [itemId]
+      );
+
+      // Check if all items in this order are now accepted
+      const allItemsResult = await client.query(
+        `SELECT COUNT(*) as total, SUM(CASE WHEN item_status = 'accepted' THEN 1 ELSE 0 END) as accepted
+         FROM order_items WHERE order_id = $1`,
+        [item.order_id]
+      );
+
+      const { total, accepted } = allItemsResult.rows[0];
+
+      // If all items accepted, update master order status
+      if (parseInt(total) === parseInt(accepted)) {
+        await client.query(
+          `UPDATE orders SET status = 'confirmed', updated_at = now() WHERE id = $1`,
+          [item.order_id]
+        );
+      } else {
+        // Partial acceptance
+        await client.query(
+          `UPDATE orders SET status = 'partially_accepted', updated_at = now() WHERE id = $1`,
+          [item.order_id]
+        );
+      }
+
+      await client.query('COMMIT');
+
+      res.json({ success: true, message: 'Order item accepted successfully' });
+    } catch (err) {
+      await client.query('ROLLBACK');
+      if (err.status) {
+        return sendErrorResponse(res, err.status, err.message, err.details);
+      }
+      console.error('Error accepting order item:', err);
+      sendErrorResponse(res, 500, 'Failed to accept order item', err.message);
+    } finally {
+      client.release();
+    }
+  } catch (err) {
+    console.error('Error accepting order item:', err);
+    sendErrorResponse(res, 500, 'Failed to accept order item', err.message);
+  }
+}
+
+// POST /api/partner/order-items/:itemId/reject
+// Partner rejects a specific order item (item-level rejection)
+async function rejectOrderItem(req, res) {
+  const { itemId } = req.params;
+  const { reason } = req.body;
+  const partnerId = req.user?.id;
+
+  try {
+    if (!partnerId) {
+      return sendErrorResponse(res, 401, 'Unauthorized: Invalid partner ID');
+    }
+
+    const client = await db.pool.connect();
+    try {
+      await client.query('BEGIN');
+
+      // Check if item exists and belongs to this partner
+      const itemResult = await client.query(
+        `SELECT oi.*, o.status as order_status 
+         FROM order_items oi
+         JOIN orders o ON o.id = oi.order_id
+         WHERE oi.id = $1 AND oi.partner_id = $2 FOR UPDATE`,
+        [itemId, partnerId]
+      );
+
+      if (itemResult.rows.length === 0) {
+        throw { status: 404, message: 'Order item not found or not assigned to you' };
+      }
+
+      const item = itemResult.rows[0];
+
+      // Update item status to rejected
+      await client.query(
+        `UPDATE order_items SET item_status = 'rejected', updated_at = now() WHERE id = $1`,
+        [itemId]
+      );
+
+      // Check if all items in this order are now rejected
+      const allItemsResult = await client.query(
+        `SELECT COUNT(*) as total, SUM(CASE WHEN item_status = 'rejected' THEN 1 ELSE 0 END) as rejected
+         FROM order_items WHERE order_id = $1`,
+        [item.order_id]
+      );
+
+      const { total, rejected } = allItemsResult.rows[0];
+
+      // If all items rejected, update master order status
+      if (parseInt(total) === parseInt(rejected)) {
+        await client.query(
+          `UPDATE orders SET status = 'rejected', updated_at = now() WHERE id = $1`,
+          [item.order_id]
+        );
+      } else {
+        // Partial rejection
+        await client.query(
+          `UPDATE orders SET status = 'partially_rejected', updated_at = now() WHERE id = $1`,
+          [item.order_id]
+        );
+      }
+
+      await client.query('COMMIT');
+
+      res.json({ success: true, message: 'Order item rejected successfully' });
+    } catch (err) {
+      await client.query('ROLLBACK');
+      if (err.status) {
+        return sendErrorResponse(res, err.status, err.message, err.details);
+      }
+      console.error('Error rejecting order item:', err);
+      sendErrorResponse(res, 500, 'Failed to reject order item', err.message);
+    } finally {
+      client.release();
+    }
+  } catch (err) {
+    console.error('Error rejecting order item:', err);
+    sendErrorResponse(res, 500, 'Failed to reject order item', err.message);
+  }
+}
+
 module.exports = {
   getAvailableOrders,
   acceptOrder,
@@ -507,4 +666,6 @@ module.exports = {
   getPartnerOrders,
   updateOrderStatus,
   updateProductStock,
+  acceptOrderItem,
+  rejectOrderItem,
 };

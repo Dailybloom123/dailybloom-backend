@@ -35,7 +35,7 @@ async function createOrder(req, res) {
     const productIds = items.map((i) => i.product_id);
     console.log('Looking up products:', productIds);
     const productsResult = await client.query(
-      `SELECT id, price, stock, stock_reserved FROM products WHERE id = ANY($1) FOR UPDATE`,
+      `SELECT id, price, stock, stock_reserved, partner_id FROM products WHERE id = ANY($1) FOR UPDATE`,
       [productIds]
     );
     console.log('Products found:', productsResult.rows.length, 'out of', productIds.length);
@@ -84,10 +84,16 @@ async function createOrder(req, res) {
     }
 
     // Create the order with PENDING status (new 5-state lifecycle)
+    // Generate display_order_id using PostgreSQL SEQUENCE
+    const displayOrderIdResult = await client.query(
+      `SELECT 'DB-' || LPAD(nextval('display_order_id_seq')::TEXT, 4, '0') as display_order_id`
+    );
+    const displayOrderId = displayOrderIdResult.rows[0].display_order_id;
+
     const orderResult = await client.query(
-      `INSERT INTO orders (user_id, address_id, zone_id, status, total, delivery_date, delivery_slot)
-       VALUES ($1, $2, $3, 'pending', $4, $5, $6) RETURNING *`,
-      [userId, address_id, zoneId, total, delivery_date, delivery_slot || null]
+      `INSERT INTO orders (user_id, address_id, zone_id, status, total, delivery_date, delivery_slot, display_order_id)
+       VALUES ($1, $2, $3, 'pending', $4, $5, $6, $7) RETURNING *`,
+      [userId, address_id, zoneId, total, delivery_date, delivery_slot || null, displayOrderId]
     );
     const order = orderResult.rows[0];
 
@@ -95,9 +101,11 @@ async function createOrder(req, res) {
     for (const item of items) {
       const product = productMap.get(item.product_id);
       
+      // Snapshot partner_id from product to order_items for historical accuracy
       await client.query(
-        `INSERT INTO order_items (order_id, product_id, quantity, price) VALUES ($1, $2, $3, $4)`,
-        [order.id, item.product_id, item.quantity, parseFloat(product.price)]
+        `INSERT INTO order_items (order_id, product_id, quantity, price, partner_id, item_status) 
+         VALUES ($1, $2, $3, $4, $5, 'pending')`,
+        [order.id, item.product_id, item.quantity, parseFloat(product.price), product.partner_id || null]
       );
 
       // Reserve stock atomically

@@ -8,6 +8,10 @@ router.get('/available-orders', authenticate, partnerController.getAvailableOrde
 router.post('/accept-order/:id', authenticate, partnerController.acceptOrder);
 router.post('/reject-order/:id', authenticate, partnerController.rejectOrder);
 
+// Item-level accept/reject (for multi-vertical routing)
+router.post('/order-items/:itemId/accept', authenticate, partnerController.acceptOrderItem);
+router.post('/order-items/:itemId/reject', authenticate, partnerController.rejectOrderItem);
+
 // Partner's assigned orders
 router.get('/orders', authenticate, partnerController.getPartnerOrders);
 router.patch('/orders/:id/status', authenticate, partnerController.updateOrderStatus);
